@@ -1,0 +1,36 @@
+{
+  "name": "jobline",
+  "version": "0.1.0",
+  "description": "A port of Laravel's queue system to Node.js. Job classes, retries, backoff, unique and debounced jobs, middleware, chains and pausing, with pluggable drivers. SQLite by default, zero dependencies.",
+  "type": "module",
+  "main": "./src/index.js",
+  "exports": {
+    ".": "./src/index.js"
+  },
+  "bin": {
+    "jobline": "./bin/jobline.js"
+  },
+  "files": [
+    "LICENSE",
+    "src",
+    "bin",
+    "README.md"
+  ],
+  "scripts": {
+    "test": "node --test"
+  },
+  "engines": {
+    "node": ">=22.13"
+  },
+  "keywords": [
+    "queue",
+    "jobs",
+    "background-jobs",
+    "worker",
+    "sqlite",
+    "laravel",
+    "retry",
+    "backoff"
+  ],
+  "license": "MIT"
+}
