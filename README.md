@@ -2,7 +2,7 @@
 
 Laravel-style background jobs for Node.js.
 
-A port of Laravel's queue system (`Illuminate\Queue`, 13.x) to Node.js. Job classes, retries, backoff, timeouts, unique and debounced jobs, job middleware, chains, pausing and failed-job handling follow the same rules as Laravel's worker. Storage is a pluggable driver, and the default is **SQLite with zero dependencies** (it uses Node's built-in `node:sqlite`). No Redis to install, no server to run.
+A Laravel-inspired queue for Node.js. Job classes, retries, backoff, timeouts, unique and debounced jobs, job middleware, chains, pausing and failed-job handling. Storage is a pluggable driver, and the default is **SQLite with zero dependencies** (it uses Node's built-in `node:sqlite`). No Redis to install, no server to run.
 
 ```js
 import { Job } from 'jobline'
@@ -71,7 +71,7 @@ import { SendInvoice } from './jobs/SendInvoice.js'
 export default createQueue({
   driver: 'sqlite',        // default
   path: 'queue.sqlite',    // default
-  retryAfter: 90,          // Laravel's retry_after
+  retryAfter: 90,          // seconds before a stuck job is retried
   jobs: [SendInvoice],
 })
 ```
@@ -94,38 +94,13 @@ npx jobline work --queue high,emails,default
 
 ## Coming from Laravel?
 
-The code follows `laravel/framework/src/Illuminate/Queue` on the 13.x branch. Method names in `src/Worker.js` match Laravel's `Worker` (`process`, `handleJobException`, `markJobAsFailedIfAlreadyExceedsMaxAttempts`, `calculateBackoff`, `stopIfNecessary`, ...), so you can read the two side by side.
+jobline is modeled on Laravel's queue, so the concepts, option names, middleware and CLI commands carry over (`queue:work` becomes `jobline work`, `$tries` becomes `static tries`, and so on). A few things differ:
 
-| Laravel | jobline |
-| --- | --- |
-| `class X implements ShouldQueue` | `class X extends Job` |
-| constructor properties | `this.data` (plain JSON) |
-| `X::dispatch(...)`, `dispatchIf`, `dispatchUnless` | `X.dispatch({...})`, `dispatchIf`, `dispatchUnless` |
-| `->onQueue('high')->delay(60)` | `.onQueue('high').delay(60)` |
-| `X::dispatchSync(...)` | `X.dispatchSync({...})` |
-| `$tries`, `$backoff`, `$timeout`, `$maxExceptions`, `$failOnTimeout` | `static tries`, `backoff`, `timeout`, `maxExceptions`, `failOnTimeout` |
-| `retryUntil()` | `retryUntil()` |
-| `failed(Throwable $e)` | `failed(error)` |
-| `$this->attempts()`, `release()`, `fail()`, `delete()` | `this.attempts()`, `release()`, `fail()`, `delete()` |
-| `ShouldBeUnique`, `uniqueId()`, `$uniqueFor` | `static unique = true`, `uniqueId()`, `static uniqueFor` |
-| `ShouldBeUniqueUntilProcessing` | `static uniqueUntilProcessing = true` |
-| `#[DebounceFor(30, maxWait: 120)]`, `debounceId()` | `static debounceFor = 30`, `static maxDebounceWait = 120`, `debounceId()` |
-| `WithoutOverlapping`, `ThrottlesExceptions`, `RateLimited`, `Skip`, `Release`, `FailOnException` | same names, same fluent methods |
-| `RateLimiter::for('x', fn ($job) => Limit::perMinute(10))` | `queue.limiter('x', (job) => Limit.perMinute(10))` |
-| `Bus::chain([...])->dispatch()` | `queue.chain([...])` |
-| `retry_after` | `retryAfter` |
-| `queue:work` and its options | `jobline work` (same options) |
-| `queue:failed`, `retry`, `forget`, `flush`, `clear`, `restart`, `pause`, `resume` | `jobline failed`, `retry`, `forget`, `flush`, `clear`, `restart`, `pause`, `resume` |
-| `sync` driver | `driver: 'sync'` |
-| `JobProcessed`, `JobFailed`, ... events | `job:processed`, `job:failed`, ... events |
-
-What's different, and why:
-
-- **Timeouts.** Laravel uses `SIGALRM` to kill a stuck worker. Node can't interrupt a running function, so jobline aborts `this.signal`, marks the job failed if it's out of chances (same rules as Laravel), and **stops the worker** with exit code 1, so your process manager restarts it. A job that isn't failed stays reserved and runs again after `retryAfter`, exactly like Laravel. Pass `--no-kill-on-timeout` to treat timeouts as ordinary errors instead (Laravel's `Worker::$killOnTimeout = false`).
-- **One driver for everything.** Laravel keeps jobs in the queue backend but locks, rate limits, exception counts and restart/pause signals in the cache. jobline's driver stores all of it, so one SQLite file is enough.
-- **No closures or PHP serialization.** Jobs carry plain JSON in `this.data`, and chain `catch()` callbacks aren't supported.
-- **Concurrency.** Laravel runs one job per worker process. jobline adds `--concurrency` because Node handles many waiting jobs well in one process.
-- Not ported yet: batches (`Bus::batch`), `queue:monitor`, `queue:prune-failed`, encrypted jobs, and the Redis, SQS and Beanstalkd drivers.
+- **Timeouts.** Node can't interrupt a running function, so jobline aborts `this.signal` and stops the worker with exit code 1 so your process manager restarts it. Pass `--no-kill-on-timeout` to treat timeouts as ordinary errors.
+- **One store for everything.** Locks, rate limits and pause/restart signals live in the same driver as the jobs, so one SQLite file is enough.
+- **Plain JSON, no closures.** Jobs carry plain JSON in `this.data`.
+- **Concurrency.** Use `--concurrency` to run several jobs in one process.
+- **Not ported yet:** batches, `queue:monitor`, `queue:prune-failed`, encrypted jobs, and the Redis, SQS and Beanstalkd drivers.
 
 ## Job options
 
@@ -168,7 +143,7 @@ jobline work [options]
   --config file.js             Where your queue is exported (default jobline.config.js)
 ```
 
-Exit codes follow Laravel: `0` for normal stops, `12` for the memory limit, `1` after a timeout. Workers shut down gracefully on `SIGINT`/`SIGTERM`. Run them under a process manager (systemd, PM2, Supervisor, Docker) so they come back after they exit.
+Exit codes: `0` for normal stops, `12` for the memory limit, `1` after a timeout. Workers shut down gracefully on `SIGINT`/`SIGTERM`. Run them under a process manager (systemd, PM2, Supervisor, Docker) so they come back after they exit.
 
 From code: `await queue.work({ queue: 'high,default', concurrency: 5 })`.
 
@@ -212,7 +187,7 @@ The lock is released when the job finishes or fails for good, not when it's rele
 
 ## Debounced jobs
 
-New in Laravel 13. Useful when the same event fires in bursts, like reindexing a user's search data after every edit.
+Useful when the same event fires in bursts, like reindexing a user's search data after every edit.
 
 ```js
 class ReindexUser extends Job {
@@ -253,7 +228,7 @@ class SyncAccount extends Job {
 queue.limiter('crm', (job) => Limit.perMinute(60).by(job.data.accountId))
 ```
 
-They behave like Laravel's, including the details that trip people up. `WithoutOverlapping` defaults to `releaseAfter(0)` and a lock that never expires, so set `expireAfter()` in case a worker dies holding it. `ThrottlesExceptions` catches errors and releases the job instead of counting exceptions, and its `backoff()` is in minutes. Released jobs use up attempts, so pair these with `retryUntil()` or `tries = 0`.
+Details that trip people up: `WithoutOverlapping` defaults to `releaseAfter(0)` and a lock that never expires, so set `expireAfter()` in case a worker dies holding it. `ThrottlesExceptions` catches errors and releases the job instead of counting exceptions, and its `backoff()` is in minutes. Released jobs use up attempts, so pair these with `retryUntil()` or `tries = 0`.
 
 Your own middleware can be a function `(job, next) => ...` or an object with `handle(job, next)`.
 
@@ -284,7 +259,7 @@ queue.on('job:processed', ({ name, duration }) => metrics.timing(name, duration)
 queue.on('job:failed', ({ name, error }) => sentry.captureException(error))
 ```
 
-`job:queued`, `job:unique-skipped`, `job:processing`, `job:processed`, `job:exception-occurred`, `job:released-after-exception`, `job:released`, `job:failed`, `job:timed-out`, `job:debounced`, `job:attempted`, `worker:starting`, `worker:stopping`, `worker:idle`, `worker:error`, `worker:queue-paused`, `worker:queue-resumed`, `queue:paused`, `queue:resumed`, `warning`. Each maps to the Laravel event of the same name.
+`job:queued`, `job:unique-skipped`, `job:processing`, `job:processed`, `job:exception-occurred`, `job:released-after-exception`, `job:released`, `job:failed`, `job:timed-out`, `job:debounced`, `job:attempted`, `worker:starting`, `worker:stopping`, `worker:idle`, `worker:error`, `worker:queue-paused`, `worker:queue-resumed`, `queue:paused`, `queue:resumed`, `warning`.
 
 ## Things worth knowing
 
