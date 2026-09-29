@@ -92,16 +92,6 @@ await SendInvoice.dispatch({ invoiceId: 43 }).onQueue('high').delay(60)
 npx jobline work --queue high,emails,default
 ```
 
-## Coming from Laravel?
-
-jobline is modeled on Laravel's queue, so the concepts, option names, middleware and CLI commands carry over (`queue:work` becomes `jobline work`, `$tries` becomes `static tries`, and so on). A few things differ:
-
-- **Timeouts.** Node can't interrupt a running function, so jobline aborts `this.signal` and stops the worker with exit code 1 so your process manager restarts it. Pass `--no-kill-on-timeout` to treat timeouts as ordinary errors.
-- **One store for everything.** Locks, rate limits and pause/restart signals live in the same driver as the jobs, so one SQLite file is enough.
-- **Plain JSON, no closures.** Jobs carry plain JSON in `this.data`.
-- **Concurrency.** Use `--concurrency` to run several jobs in one process.
-- **Not ported yet:** batches, `queue:monitor`, `queue:prune-failed`, encrypted jobs, and the Redis, SQS and Beanstalkd drivers.
-
 ## Job options
 
 All times are in seconds. Options you leave out fall back to the worker's options.
@@ -246,7 +236,7 @@ await queue.chain([
 
 | Driver | Use it for |
 | --- | --- |
-| `sqlite` (default) | Real apps on one machine. Safe with several worker processes on the same file. Works like Laravel's `database` driver. |
+| `sqlite` (default) | Real apps on one machine. Safe with several worker processes on the same file. |
 | `memory` | Tests and scripts. Lost when the process exits. |
 | `sync` | Runs jobs right away when dispatched and throws errors to the caller. |
 
