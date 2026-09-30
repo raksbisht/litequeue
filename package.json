@@ -1,0 +1,49 @@
+{
+  "name": "@raksbisht/litequeue",
+  "version": "0.1.0",
+  "description": "Background jobs and queues for Node.js with no Redis and no dependencies. Retries, backoff, timeouts, unique and debounced jobs, middleware, chains. SQLite by default.",
+  "type": "module",
+  "main": "./src/index.js",
+  "exports": {
+    ".": "./src/index.js"
+  },
+  "bin": {
+    "litequeue": "./bin/litequeue.js"
+  },
+  "files": [
+    "LICENSE",
+    "src",
+    "bin",
+    "README.md",
+    "llms.txt"
+  ],
+  "scripts": {
+    "test": "node --test \"test/*.test.js\""
+  },
+  "engines": {
+    "node": ">=22.13"
+  },
+  "keywords": [
+    "queue",
+    "job-queue",
+    "jobs",
+    "background-jobs",
+    "worker",
+    "sqlite",
+    "no-redis",
+    "zero-dependencies",
+    "laravel",
+    "retry",
+    "backoff",
+    "bullmq-alternative"
+  ],
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/raksbisht/litequeue.git"
+  },
+  "homepage": "https://github.com/raksbisht/litequeue#readme",
+  "bugs": {
+    "url": "https://github.com/raksbisht/litequeue/issues"
+  },
+  "license": "MIT"
+}

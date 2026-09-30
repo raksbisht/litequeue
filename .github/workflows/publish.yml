@@ -1,0 +1,26 @@
+# Publishes the package to npm. Runs only when you start it by hand:
+# GitHub → Actions → "Publish to npm" → Run workflow.
+# Needs a repository secret named NPM_TOKEN (an npm access token that can publish).
+name: Publish to npm
+
+on:
+  workflow_dispatch:
+
+jobs:
+  publish:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          registry-url: https://registry.npmjs.org
+
+      - name: Run the tests
+        run: npm test
+
+      - name: Publish
+        run: npm publish --access public
+        env:
+          NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
